@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Db } from '../db/client';
+import { recordEvent } from '../lib/audit';
 import { requireActor } from '../lib/auth';
 import { badRequest, forbidden, notFound } from '../lib/errors';
 import {
@@ -9,6 +10,7 @@ import {
   removeMember,
   updateMemberRole,
 } from '../lib/members';
+import { canAssignRole, canManageMembers, canRemoveMember } from '../lib/permissions';
 import { requireRole } from '../lib/validation';
 
 export function membersRouter(db: Db): Router {
@@ -18,55 +20,75 @@ export function membersRouter(db: Db): Router {
     res.json({ members: listMembers(db) });
   });
 
-  router.get('/members/:memberId', (req, res) => {
-    const member = getMember(db, req.params.memberId);
+  router.get('/members/:userId', (req, res) => {
+    const member = getMember(db, req.params.userId);
     if (!member) {
       throw notFound('Member not found');
     }
     res.json({ member });
   });
 
-  router.patch('/members/:memberId/role', (req, res) => {
+  router.delete('/members/:userId', (req, res) => {
     const actor = requireActor(req);
-    if (actor.role !== 'owner' && actor.role !== 'admin') {
+    const userId = req.params.userId;
+    const member = getMember(db, userId);
+    if (!member) {
+      throw notFound('Member not found');
+    }
+
+    const isSelf = actor.id === userId;
+    if (!canRemoveMember(actor.role, member.role, isSelf)) {
+      throw forbidden('Only owners and admins can remove members');
+    }
+    if (member.role === 'owner' && countMembersWithRole(db, 'owner') === 1) {
+      throw badRequest('You cannot remove the last owner');
+    }
+
+    db.transaction(() => {
+      removeMember(db, userId);
+      recordEvent(db, {
+        actorId: isSelf ? null : actor.id,
+        action: 'member.removed',
+        targetType: 'member',
+        targetId: userId,
+        metadata: { email: member.email, role: member.role },
+      });
+    });
+    res.status(204).end();
+  });
+
+  router.patch('/members/:userId/role', (req, res) => {
+    const actor = requireActor(req);
+    if (!canManageMembers(actor.role)) {
       throw forbidden('Only owners and admins can change roles');
     }
 
-    const memberId = req.params.memberId;
-    const member = getMember(db, memberId);
+    const userId = req.params.userId;
+    const member = getMember(db, userId);
     if (!member) {
       throw notFound('Member not found');
     }
 
     const role = requireRole(req.body?.role);
-    if (role === 'owner' && actor.role !== 'owner') {
+    if (!canAssignRole(actor.role, role)) {
       throw forbidden('Only owners can make someone an owner');
     }
     if (member.role === 'owner' && role !== 'owner' && countMembersWithRole(db, 'owner') === 1) {
       throw badRequest('A workspace needs at least one owner');
     }
 
-    res.json({ member: updateMemberRole(db, memberId, role) });
-  });
-
-  router.delete('/members/:memberId', (req, res) => {
-    const actor = requireActor(req);
-    const memberId = req.params.memberId;
-    const isSelf = actor.id === memberId;
-    if (!isSelf && actor.role !== 'owner' && actor.role !== 'admin') {
-      throw forbidden('Only owners and admins can remove members');
-    }
-
-    const member = getMember(db, memberId);
-    if (!member) {
-      throw notFound('Member not found');
-    }
-    if (member.role === 'owner' && countMembersWithRole(db, 'owner') === 1) {
-      throw badRequest('You cannot remove the last owner');
-    }
-
-    removeMember(db, memberId);
-    res.status(204).end();
+    const updated = db.transaction(() => {
+      const next = updateMemberRole(db, userId, role);
+      recordEvent(db, {
+        actorId: actor.id,
+        action: 'member.role_changed',
+        targetType: 'member',
+        targetId: userId,
+        metadata: { email: member.email, from: member.role, to: role },
+      });
+      return next;
+    });
+    res.json({ member: updated });
   });
 
   return router;
