@@ -34,8 +34,13 @@ export function listMembers(db: Db): Member[] {
     .map(toMember);
 }
 
-export function getMember(db: Db, memberId: string): Member | undefined {
-  const row = db.get<MemberRow>('SELECT * FROM members WHERE id = ?', [memberId]);
+export function getMember(db: Db, userId: string): Member | undefined {
+  const row = db.get<MemberRow>('SELECT * FROM members WHERE id = ?', [userId]);
+  return row ? toMember(row) : undefined;
+}
+
+export function getMemberByEmail(db: Db, email: string): Member | undefined {
+  const row = db.get<MemberRow>('SELECT * FROM members WHERE email = ?', [email]);
   return row ? toMember(row) : undefined;
 }
 
@@ -46,11 +51,28 @@ export function countMembersWithRole(db: Db, role: Role): number {
   return row?.total ?? 0;
 }
 
-export function updateMemberRole(db: Db, memberId: string, role: Role): Member | undefined {
-  db.run('UPDATE members SET role = ? WHERE id = ?', [role, memberId]);
-  return getMember(db, memberId);
+export interface NewMember {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  joinedAt: string;
 }
 
-export function removeMember(db: Db, memberId: string): boolean {
-  return db.run('DELETE FROM members WHERE id = ?', [memberId]) > 0;
+export function addMember(db: Db, member: NewMember): Member {
+  db.run(
+    `INSERT INTO members (id, email, name, role, joined_at, last_active_at)
+     VALUES (?, ?, ?, ?, ?, NULL)`,
+    [member.id, member.email, member.name, member.role, member.joinedAt],
+  );
+  return getMember(db, member.id)!;
+}
+
+export function updateMemberRole(db: Db, userId: string, role: Role): Member | undefined {
+  db.run('UPDATE members SET role = ? WHERE id = ?', [role, userId]);
+  return getMember(db, userId);
+}
+
+export function removeMember(db: Db, userId: string): boolean {
+  return db.run('DELETE FROM members WHERE id = ?', [userId]) > 0;
 }

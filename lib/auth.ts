@@ -15,8 +15,8 @@ declare module 'express-serve-static-core' {
  */
 export function loadActor(db: Db) {
   return (req: Request, _res: Response, next: NextFunction) => {
-    const memberId = req.header('x-member-id');
-    const actor = memberId ? getMember(db, memberId) : undefined;
+    const userId = req.header('x-member-id');
+    const actor = userId ? getMember(db, userId) : undefined;
     if (!actor) {
       next(unauthorized());
       return;

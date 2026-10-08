@@ -1,4 +1,4 @@
-import type { Role } from '../lib/validation';
+import type { Role } from './validation';
 
 const ROLE_LABELS: Record<Role, string> = {
   owner: 'Owner',
@@ -6,6 +6,15 @@ const ROLE_LABELS: Record<Role, string> = {
   member: 'Member',
   viewer: 'Viewer',
 };
+
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return count === 1 ? singular : plural;
+}
+
+export function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
 
 /** Turns "  ada   lovelace " into "Ada Lovelace". */
 export function formatName(name: string): string {
@@ -51,15 +60,31 @@ export function formatRelative(iso: string | null, now: Date = new Date()): stri
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} ${pluralize(hours, 'hour')} ago`;
   const days = Math.round(hours / 24);
-  if (days < 30) return `${days} ${pluralize(days, 'day')} ago`;
+  if (days < 14) return `${days} ${pluralize(days, 'day')} ago`;
   return formatDate(iso);
 }
 
-export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
-  return count === 1 ? singular : plural;
+/** Describes when an invitation expires, like "Expires in 3 days" or "Expired". */
+export function formatExpiry(expiresAt: string, now: Date = new Date()): string {
+  const millis = new Date(expiresAt).getTime() - now.getTime();
+  if (millis <= 0) {
+    return 'Expired';
+  }
+  const hours = Math.floor(millis / (60 * 60 * 1000));
+  if (hours < 1) {
+    return 'Expires in less than an hour';
+  }
+  if (hours < 24) {
+    return `Expires in ${hours} ${pluralize(hours, 'hour')}`;
+  }
+  const days = Math.floor(hours / 24);
+  return `Expires in ${days} ${pluralize(days, 'day')}`;
 }
 
-export function truncate(text: string, max: number): string {
-  if (text.length <= max) return text;
-  return `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+/** Masks an email for display in lists, like "ad***@example.com". */
+export function maskEmail(email: string): string {
+  const [local = '', domain = ''] = email.split('@');
+  if (!domain) return email;
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}***@${domain}`;
 }

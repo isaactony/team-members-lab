@@ -1,5 +1,5 @@
 import type { Role } from '../lib/validation';
-import { formatRole } from '../utils/format';
+import { formatRole } from '../lib/format';
 
 const ROLE_TONES: Record<Role, string> = {
   owner: 'badge badge--owner',
