@@ -1,0 +1,16 @@
+# CodeRabbit settings for the review lab repo.
+language: en-US
+reviews:
+  profile: assertive
+  high_level_summary: true
+  sequence_diagrams: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "db/migrations/**"
+      instructions: "Check that each migration is safe to run more than once and never drops data without a backfill."
+    - path: "api/**"
+      instructions: "Check that every route enforces the acting member's role before changing data."
+    - path: "lib/invitations.ts"
+      instructions: "Check invitation state transitions, expiry handling and token security."
