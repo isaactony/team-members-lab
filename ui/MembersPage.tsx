@@ -1,18 +1,36 @@
+import type { Invitation } from '../lib/invitations';
 import type { Member } from '../lib/members';
-import type { Role } from '../lib/validation';
-import { pluralize } from '../utils/format';
+import { canAssignRole, canInvite, canManageMembers } from '../lib/permissions';
+import { ROLES, type Role } from '../lib/validation';
+import { pluralize } from '../lib/format';
 import { MemberRow } from './MemberRow';
+import { PendingInvitations } from './PendingInvitations';
 
 export interface MembersPageProps {
   members: Member[];
+  invitations?: Invitation[];
   actor: Member;
   now?: Date;
-  onChangeRole?: (memberId: string, role: Role) => void;
-  onRemove?: (memberId: string) => void;
+  onInvite?: () => void;
+  onChangeRole?: (userId: string, role: Role) => void;
+  onRemove?: (userId: string) => void;
+  onResendInvitation?: (invitationId: string) => void;
+  onRevokeInvitation?: (invitationId: string) => void;
 }
 
-export function MembersPage({ members, actor, now, onChangeRole, onRemove }: MembersPageProps) {
-  const canManage = actor.role === 'owner' || actor.role === 'admin';
+export function MembersPage({
+  members,
+  invitations = [],
+  actor,
+  now,
+  onInvite,
+  onChangeRole,
+  onRemove,
+  onResendInvitation,
+  onRevokeInvitation,
+}: MembersPageProps) {
+  const canManage = canManageMembers(actor.role);
+  const assignableRoles = ROLES.filter((role) => canAssignRole(actor.role, role));
 
   return (
     <main className="members-page">
@@ -21,7 +39,22 @@ export function MembersPage({ members, actor, now, onChangeRole, onRemove }: Mem
         <p>
           {members.length} {pluralize(members.length, 'member')}
         </p>
+        {canInvite(actor.role) ? (
+          <button type="button" className="primary" onClick={onInvite}>
+            Invite teammate
+          </button>
+        ) : null}
       </header>
+
+      {canInvite(actor.role) ? (
+        <PendingInvitations
+          invitations={invitations}
+          now={now}
+          onResend={onResendInvitation}
+          onRevoke={onRevokeInvitation}
+        />
+      ) : null}
+
       <table>
         <thead>
           <tr>
@@ -40,6 +73,7 @@ export function MembersPage({ members, actor, now, onChangeRole, onRemove }: Mem
               key={member.id}
               member={member}
               canManage={canManage && member.id !== actor.id}
+              assignableRoles={assignableRoles}
               now={now}
               onChangeRole={onChangeRole}
               onRemove={onRemove}
