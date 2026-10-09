@@ -7,7 +7,7 @@ import { generateToken, hashToken, newId } from './tokens';
 import type { Role } from './validation';
 
 export const INVITATION_TTL_DAYS = 7;
-export const MAX_RESENDS = 3;
+export const MAX_RESENDS = 2;
 
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 
