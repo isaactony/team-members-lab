@@ -7,7 +7,7 @@ import { generateToken, hashToken, newId } from './tokens';
 import type { Role } from './validation';
 
 export const INVITATION_TTL_DAYS = 7;
-export const MAX_RESENDS = 2;
+export const MAX_RESENDS = 3;
 
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 
@@ -73,7 +73,7 @@ export class InvitationService {
     this.db = options.db;
     this.email = options.email;
     this.appUrl = options.appUrl.replace(/\/$/, '');
-    this.workspaceName = options.workspaceName;
+    this.workspaceName = options.workspaceName.trim() || 'Team Lab';
     this.now = options.now ?? (() => new Date());
   }
 
