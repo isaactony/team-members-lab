@@ -7,7 +7,7 @@ import {
   initials,
   pluralize,
   truncate,
-} from '../utils/format';
+} from '../lib/format';
 
 describe('format helpers', () => {
   it('normalizes names', () => {
@@ -45,5 +45,24 @@ describe('format helpers', () => {
   it('truncates long text', () => {
     expect(truncate('Change Stack', 20)).toBe('Change Stack');
     expect(truncate('Change Stack review', 10)).toBe('Change St…');
+  });
+});
+
+describe('invitation format helpers', () => {
+  const now = new Date('2026-10-02T12:00:00.000Z');
+
+  it('describes expiry', async () => {
+    const { formatExpiry } = await import('../lib/format');
+    expect(formatExpiry('2026-10-02T11:00:00.000Z', now)).toBe('Expired');
+    expect(formatExpiry('2026-10-02T12:30:00.000Z', now)).toBe('Expires in less than an hour');
+    expect(formatExpiry('2026-10-02T15:00:00.000Z', now)).toBe('Expires in 3 hours');
+    expect(formatExpiry('2026-10-09T12:00:00.000Z', now)).toBe('Expires in 7 days');
+  });
+
+  it('masks emails', async () => {
+    const { maskEmail } = await import('../lib/format');
+    expect(maskEmail('grace@example.com')).toBe('gr***@example.com');
+    expect(maskEmail('a@example.com')).toBe('a***@example.com');
+    expect(maskEmail('not-an-email')).toBe('not-an-email');
   });
 });

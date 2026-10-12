@@ -1,19 +1,34 @@
 import type { Member } from '../lib/members';
 import type { Role } from '../lib/validation';
-import { formatDate, formatName, formatRelative, initials } from '../utils/format';
+import { formatDate, formatName, formatRelative, initials } from '../lib/format';
 import { RoleBadge } from './RoleBadge';
 
 export interface MemberRowProps {
   member: Member;
   canManage: boolean;
+  assignableRoles?: Role[];
   now?: Date;
-  onChangeRole?: (memberId: string, role: Role) => void;
-  onRemove?: (memberId: string) => void;
+  onChangeRole?: (userId: string, role: Role) => void;
+  onRemove?: (userId: string) => void;
 }
 
-export function MemberRow({ member, canManage, now, onChangeRole, onRemove }: MemberRowProps) {
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'member', label: 'Member' },
+  { value: 'viewer', label: 'Viewer' },
+];
+
+export function MemberRow({
+  member,
+  canManage,
+  assignableRoles = ['owner', 'admin', 'member', 'viewer'],
+  now,
+  onChangeRole,
+  onRemove,
+}: MemberRowProps) {
   return (
-    <tr data-member-id={member.id}>
+    <tr data-user-id={member.id}>
       <td>
         <span className="avatar" aria-hidden="true">
           {initials(member.name)}
@@ -34,10 +49,13 @@ export function MemberRow({ member, canManage, now, onChangeRole, onRemove }: Me
               defaultValue={member.role}
               onChange={(event) => onChangeRole?.(member.id, event.target.value as Role)}
             >
-              <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
-              <option value="member">Member</option>
-              <option value="viewer">Viewer</option>
+              {ROLE_OPTIONS.filter(
+                (option) => assignableRoles.includes(option.value) || option.value === member.role,
+              ).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <button type="button" onClick={() => onRemove?.(member.id)}>
               Remove
